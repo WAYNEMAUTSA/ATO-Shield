@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, User, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getBalance, sendMoney } from "@/shared/data";
+import { createTransaction } from "@/shared/api/endpoints/transactions";
 import { sheety } from "@/shared/lib/sheetyClient";
 
 function Send() {
@@ -129,16 +130,16 @@ const handleSend = async (e) => {
     localStorage.setItem("ato_user", JSON.stringify(verifiedSender));
     await sheety.updateProfile(verifiedSender.id, { balance: result.newBalance });
 
-    // LOG TRANSACTION (Keys match your Sheet headers exactly)
-    await sheety.createTransaction({
-      customerName: verifiedSender.fullName || verifiedSender.name,
-      accountId: verifiedSender.accountId,
+    await createTransaction({
+      user_id: verifiedSender.accountId || verifiedSender.id,
       amount: numericAmount,
-      status: "pending",
-      timestamp: new Date().toISOString(),
-      riskScore: Math.floor(Math.random() * 20) + 1,
-      device: localStorage.getItem("device_id") || "unknown",
-      location: "Mobile App"
+      currency: "INR",
+      location_lat: null,
+      location_lon: null,
+      device_id: localStorage.getItem("device_id") || "unknown",
+      network_fingerprint: localStorage.getItem("network_fingerprint") || null,
+      merchant_category: "Peer Transfer",
+      description: `Send to ${recipientName}`,
     });
 
     window.dispatchEvent(new Event("ato_transactions_updated"));

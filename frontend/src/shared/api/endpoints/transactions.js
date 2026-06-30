@@ -1,14 +1,21 @@
-const TRANSACTIONS_URL = import.meta.env.VITE_SHEETY_TRANSACTIONS_URL;
+import apiClient from "@/shared/api/client";
 
 export async function fetchTransactions() {
   try {
-    const response = await fetch(TRANSACTIONS_URL);
-    if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-    const data = await response.json();
-    // Returning the transactions array
-    return data.transactions || []; 
+    const response = await apiClient.get("/transactions");
+    return response.data || [];
   } catch (error) {
-    console.error("Error fetching transactions:", error);
+    console.error("Error fetching backend transactions:", error);
     return [];
+  }
+}
+
+export async function createTransaction(transaction) {
+  try {
+    const response = await apiClient.post("/transactions", transaction);
+    return response.data;
+  } catch (error) {
+    console.error("Error creating backend transaction:", error);
+    throw error;
   }
 }

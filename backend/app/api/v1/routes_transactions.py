@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.models.schemas import TransactionIn, TransactionOut, VerdictOut
 from app.models.db_models import Transaction, Verdict
@@ -63,3 +65,46 @@ async def create_transaction(tx_in: TransactionIn, db: AsyncSession = Depends(ge
     })
     
     return db_tx
+
+
+@router.get("/transactions")
+async def list_transactions(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Transaction).options(joinedload(Transaction.verdict))
+    )
+    transactions = result.scalars().unique().all()
+
+    def format_status(action: str | None) -> str:
+        return {
+            "APPROVE": "approved",
+            "NOTIFY": "flagged",
+            "FREEZE": "pending",
+            "BLOCK": "blocked",
+        }.get(action, "pending")
+
+    def serialize(tx: Transaction) -> dict:
+        verdict = tx.verdict
+        action = verdict.action if verdict else None
+        return {
+            "id": tx.id,
+            "user_id": tx.user_id,
+            "accountId": tx.user_id,
+            "customerName": tx.user_id,
+            "amount": tx.amount,
+            "currency": tx.currency,
+            "description": tx.description,
+            "created_at": tx.created_at,
+            "status": format_status(action),
+            "riskScore": verdict.final_risk_score if verdict else None,
+            "zone": verdict.zone if verdict else None,
+            "action": action,
+            "verdict": {
+                "tier1_score": verdict.tier1_score,
+                "tier2_score": verdict.tier2_score,
+                "zone": verdict.zone,
+                "final_risk_score": verdict.final_risk_score,
+                "action": action,
+            } if verdict else None,
+        }
+
+    return [serialize(tx) for tx in transactions]
