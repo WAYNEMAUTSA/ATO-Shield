@@ -22,7 +22,6 @@ function Dashboard() {
       }
     };
     loadData();
-    // Optional: Refresh every 30 seconds
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, []);

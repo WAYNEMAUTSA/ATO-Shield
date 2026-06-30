@@ -4,8 +4,8 @@ import { ArrowLeft, CheckCircle2, User, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getBalance, sendMoney } from "@/shared/data";
-import { createTransaction } from "@/shared/api/endpoints/transactions";
-import { sheety } from "@/shared/lib/sheetyClient";
+
+import { sheety } from "@/shared/lib/googleSheetsClient";
 
 function Send() {
   const navigate = useNavigate();
@@ -116,33 +116,49 @@ const handleSend = async (e) => {
   const verifiedSender = JSON.parse(currentActiveSenderRaw);
 
   const numericAmount = Number(amount);
+  if (!numericAmount || numericAmount <= 0) return setError("Enter a valid amount.");
+
   setIsProcessing(true);
   setError("");
 
   try {
-    // Balance updates
-    await sheety.updateProfile(recipientProfile.id, { balance: Number(recipientProfile.balance) + numericAmount });
-    
-    const result = sendMoney({ accountId: recipientId, name: recipientName, amount: numericAmount, currentBalance: getBalance() });
+    // 1. Update recipient balance in Sheety
+   await sheety.updateProfile(recipientProfile.accountId, {
+  balance: Number(recipientProfile.balance) + numericAmount,
+});
+    // 2. Deduct from sender locally + validate balance
+    const result = sendMoney({
+      accountId: recipientId,
+      name: recipientName,
+      amount: numericAmount,
+      currentBalance: getBalance(),
+    });
     if (!result.success) throw new Error(result.error);
 
+    // 3. Sync sender's new balance to Sheety + localStorage
     verifiedSender.balance = result.newBalance;
     localStorage.setItem("ato_user", JSON.stringify(verifiedSender));
-    await sheety.updateProfile(verifiedSender.id, { balance: result.newBalance });
+    await sheety.updateProfile(verifiedSender.accountId, { balance: result.newBalance });
 
-    await createTransaction({
-      user_id: verifiedSender.accountId || verifiedSender.id,
+    // 4. Log transaction to Sheety — keys match sheet headers exactly
+    await sheety.createTransaction({
+      customerName: verifiedSender.fullName || verifiedSender.name,
+      accountId: verifiedSender.accountId,
+      recipientAccountId: recipientId,
       amount: numericAmount,
-      currency: "INR",
-      location_lat: null,
-      location_lon: null,
-      device_id: localStorage.getItem("device_id") || "unknown",
-      network_fingerprint: localStorage.getItem("network_fingerprint") || null,
-      merchant_category: "Peer Transfer",
-      description: `Send to ${recipientName}`,
+      type: "sent",
+      status: "pending",
+      description: `Transfer to ${recipientName}`,
+      timestamp: new Date().toISOString(),
+      riskScore: Math.floor(Math.random() * 20) + 1,
+      device: localStorage.getItem("device_id") || "unknown",
+      location: localStorage.getItem("network_fingerprint") || "Mobile App",
     });
 
+    // 5. Notify listeners
     window.dispatchEvent(new Event("ato_transactions_updated"));
+    window.dispatchEvent(new Event("ato_balance_updated"));
+
     setSuccess({ amount: numericAmount, name: recipientName });
     setTimeout(() => navigate("/dashboard"), 1500);
   } catch (err) {

@@ -2,37 +2,40 @@ import { useState, useEffect } from "react";
 import { Bell, AlertTriangle, Check, Trash2, Loader2 } from "lucide-react";
 import { fetchTransactions } from "@/shared/api/endpoints/transactions";
 
+const ALERT_STATUSES = ["flagged", "raised"];
+
 function Notifications() {
   const [alerts, setAlerts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchTransactions()
-      .then((txs) => {
-        const generatedAlerts = txs
-          .filter((tx) => {
-            const description = (tx.text || tx.description || "").toLowerCase();
-            const isStandard =
-              description.includes("funds received") ||
-              description.includes("funds sent");
-            return !isStandard && (tx.riskScore > 15 || tx.status === "flagged");
-          })
-          .map((tx) => ({
-            id: tx.id,
-            text: tx.text || `High risk alert for ${tx.customerName}`,
-            type: "critical",
-            time: new Date(tx.timestamp).toLocaleTimeString(),
-          }));
+    const loadAlerts = () => {
+      fetchTransactions()
+        .then((txs) => {
+          const generatedAlerts = txs
+            .filter((tx) => ALERT_STATUSES.includes((tx.status || "").toLowerCase().trim()))
+            .map((tx) => ({
+              id: tx.id,
+              text: tx.description || `${tx.status === "raised" ? "Raised" : "Flagged"} transaction for ${tx.customerName}`,
+              status: tx.status,
+              time: tx.timestamp ? new Date(tx.timestamp).toLocaleTimeString() : "",
+            }))
+            // newest first
+            .sort((a, b) => new Date(b.time) - new Date(a.time));
 
-        setAlerts(generatedAlerts);
-        setIsLoading(false);
-      })
-      .catch(() => setIsLoading(false));
+          setAlerts(generatedAlerts);
+        })
+        .catch((err) => console.error("Error loading notifications:", err))
+        .finally(() => setIsLoading(false));
+    };
+
+    loadAlerts();
+    const interval = setInterval(loadAlerts, 15000); // keep it live
+    return () => clearInterval(interval);
   }, []);
 
   const dismissAlert = (id) => {
-    const updated = alerts.filter((a) => a.id !== id);
-    setAlerts(updated);
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
     window.dispatchEvent(new Event("ato_alerts_updated"));
   };
 
@@ -72,12 +75,8 @@ function Notifications() {
               className="p-4 flex items-start justify-between group hover:bg-slate-800/30 transition-colors"
             >
               <div className="flex gap-4">
-                <div className={`mt-1 ${alert.type === "critical" ? "text-red-400" : "text-cyan-400"}`}>
-                  {alert.type === "critical" ? (
-                    <AlertTriangle size={18} />
-                  ) : (
-                    <Bell size={18} />
-                  )}
+                <div className="mt-1 text-red-400">
+                  <AlertTriangle size={18} />
                 </div>
                 <div>
                   <p className="text-sm text-slate-200">{alert.text}</p>

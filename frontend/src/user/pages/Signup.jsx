@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, ArrowLeft, AlertCircle } from "lucide-react";
-import { sheety } from "@/shared/lib/sheetyClient";
+import { sheety } from "@/shared/lib/googleSheetsClient";
 import { getDeviceId } from "@/shared/lib/getDeviceId";
 import { detectLocation } from "@/shared/lib/detectLocation";
 

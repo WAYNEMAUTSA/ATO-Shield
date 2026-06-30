@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ShieldCheck, User, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fetchAnalysts } from "@/shared/api/endpoints/analystAuth";
+import { sheety } from "@/shared/lib/googleSheetsClient";
 
 function AnalystLogin() {
   const navigate = useNavigate();
@@ -18,48 +18,41 @@ function AnalystLogin() {
   };
 
   const handleAnalystLogin = async (e) => {
-  e.preventDefault();
-  setFormError("");
+    e.preventDefault();
+    setFormError("");
 
-  if (!form.analystId.trim() || !form.password) {
-    setFormError("Please enter your Analyst ID and password.");
-    return;
-  }
-
-  setSubmitting(true);
-
-  try {
-    const analysts = await fetchAnalysts();
-    
-    // DEBUG: Look at the console to see the real keys
-    console.log("Analyzing first record:", analysts[0]);
-
-    const foundAnalyst = analysts.find((a) => {
-      // Get the keys from your object dynamically
-      // This maps whatever your keys are to local variables
-      const id = a.analystId || a.AnalystID || a.analystID || a.id;
-      const pass = a.password || a.Password || a.pass || a.Passcode;
-
-      // Ensure the fields are not null/undefined before comparing
-      const matchId = id?.toString().trim().toLowerCase() === form.analystId.trim().toLowerCase();
-      const matchPass = pass?.toString().trim() === form.password.trim();
-
-      return matchId && matchPass;
-    });
-
-    if (foundAnalyst) {
-      localStorage.setItem("active_analyst", JSON.stringify(foundAnalyst));
-      navigate("/analyst/dashboard");
-    } else {
-      setFormError("Invalid Analyst ID or Password.");
+    if (!form.analystId.trim() || !form.password) {
+      setFormError("Please enter your Analyst ID and password.");
+      return;
     }
-  } catch (err) {
-    console.error("Login Error:", err);
-    setFormError("Unable to connect to authentication service.");
-  } finally {
-    setSubmitting(false);
-  }
-};
+
+    setSubmitting(true);
+
+    try {
+      const { analyst } = await sheety.getAnalysts();
+
+      const match = (analyst || []).find(
+        (a) =>
+          a.analystId &&
+          a.analystId.toString().trim().toLowerCase() === form.analystId.trim().toLowerCase() &&
+          a.password === form.password
+      );
+
+      if (!match) {
+        setSubmitting(false);
+        setFormError("Invalid Analyst ID or Password.");
+        return;
+      }
+
+      localStorage.setItem("active_analyst", JSON.stringify(match));
+      setSubmitting(false);
+      navigate("/analyst/dashboard");
+    } catch (err) {
+      console.error("Analyst login error:", err);
+      setSubmitting(false);
+      setFormError("Unable to connect to authentication service.");
+    }
+  };
 
   return (
     <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center relative overflow-hidden px-4">

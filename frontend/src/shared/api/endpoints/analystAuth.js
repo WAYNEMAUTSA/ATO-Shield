@@ -1,10 +1,11 @@
-const SHEETY_URL = import.meta.env.VITE_SHEETY_ANALYST_URL;
+import { sheety } from "@/shared/lib/googleSheetsClient";
 
 export async function fetchAnalysts() {
-  const response = await fetch(SHEETY_URL);
-  if (!response.ok) {
-    throw new Error("Unable to reach the authentication service.");
+  try {
+    const { analyst } = await sheety.getAnalysts();
+    return analyst || [];
+  } catch (error) {
+    console.error("Error fetching analysts:", error);
+    return [];
   }
-  const data = await response.json();
-  return data.analyst; // adjust key name once you confirm Sheety's actual response shape
 }

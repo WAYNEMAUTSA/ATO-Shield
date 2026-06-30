@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Smartphone, Globe, Clock, Loader2 } from "lucide-react";
-import { sheety } from "@/shared/lib/sheetyClient"; // Import your configured client
 import { fetchTransactions } from "@/shared/api/endpoints/transactions";
 
 function CaseReview() {
@@ -8,15 +7,22 @@ function CaseReview() {
   const [selectedCase, setSelectedCase] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-        useEffect(() => {
-        fetchTransactions() // Call the function directly
-            .then((data) => {
-            setTransactions(data || []);
-            if (data && data.length > 0) setSelectedCase(data[0]);
-            })
-            .catch((err) => console.error("Error loading cases:", err))
-            .finally(() => setIsLoading(false));
-        }, []);
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await fetchTransactions();
+        setTransactions(data || []);
+        if (data && data.length > 0) setSelectedCase(data[0]);
+      } catch (err) {
+        console.error("Error loading cases:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+    const interval = setInterval(loadData, 15000); // keep it live
+    return () => clearInterval(interval);
+  }, []);
 
   if (isLoading) {
     return (
@@ -35,11 +41,11 @@ function CaseReview() {
         </div>
         <div className="flex-1 overflow-y-auto">
           {transactions.map((tx) => (
-            <button 
+            <button
               key={tx.id}
               onClick={() => setSelectedCase(tx)}
               className={`w-full p-4 text-left border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${
-                selectedCase?.id === tx.id ? 'bg-slate-800 border-l-4 border-l-cyan-500' : ''
+                selectedCase?.id === tx.id ? "bg-slate-800 border-l-4 border-l-cyan-500" : ""
               }`}
             >
               <p className="text-sm font-medium text-slate-200">{tx.customerName}</p>
@@ -78,7 +84,9 @@ function CaseReview() {
               <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
                 <Clock className="text-cyan-400 mb-2" size={20} />
                 <p className="text-xs text-slate-500">Attempted</p>
-                <p className="text-sm text-slate-200">{new Date(selectedCase.timestamp).toLocaleString() || "N/A"}</p>
+                <p className="text-sm text-slate-200">
+                  {selectedCase.timestamp ? new Date(selectedCase.timestamp).toLocaleString() : "N/A"}
+                </p>
               </div>
             </div>
           </>

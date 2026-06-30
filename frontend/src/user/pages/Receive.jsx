@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Copy, Check, Loader2, Bell } from "lucide-react";
-import { sheety } from "@/shared/lib/sheetyClient";
+import { sheety } from "@/shared/lib/googleSheetsClient";
 
 function Receive() {
   const navigate = useNavigate();

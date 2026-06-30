@@ -30,10 +30,10 @@ function TransactionList({ transactions = [] }) {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {transactions.slice(0, 5).map((tx) => (
+          {transactions.slice(0, 5).map((tx, index) => (
             <button
-              key={tx.id}
-              onClick={() => navigate(`/send?to=${tx.accountId || ""}`)}
+              key={tx.id ?? `tx-${tx.accountId}-${index}`}
+              onClick={() => navigate(`/send?to=${tx.recipientAccountId || tx.accountId || ""}`)}
               className="flex items-center justify-between w-full"
             >
               <div className="flex items-center gap-3">
@@ -49,12 +49,16 @@ function TransactionList({ transactions = [] }) {
                   )}
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-medium text-slate-900">{tx.name}</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {tx.customerName || tx.name || "Unknown"}
+                  </p>
                   <p className="text-xs text-slate-400">
-                    {new Date(tx.date).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                    })}
+                    {tx.timestamp || tx.date
+                      ? new Date(tx.timestamp || tx.date).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                        })
+                      : "—"}
                   </p>
                 </div>
               </div>
@@ -63,7 +67,8 @@ function TransactionList({ transactions = [] }) {
                   tx.type === "received" ? "text-green-600" : "text-slate-900"
                 }`}
               >
-                {tx.type === "received" ? "+" : "-"}₹{Math.abs(tx.amount).toLocaleString("en-IN")}
+                {tx.type === "received" ? "+" : "-"}₹
+                {Math.abs(Number(tx.amount)).toLocaleString("en-IN")}
               </p>
             </button>
           ))}
