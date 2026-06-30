@@ -21,9 +21,17 @@ import AnalystLayout from "@/analyst/pages/AnalystLayout";
 import CaseReview from "@/analyst/pages/CaseReview";
 import Customers from "@/analyst/pages/Customers";
 import Settings from "@/analyst/pages/Settings";
+import { useEffect } from "react";
 
 
 function App() {
+useEffect(() => {
+    if (!localStorage.getItem("device_id")) {
+      const newDeviceId = "dev-" + Math.random().toString(36).substring(2, 11);
+      localStorage.setItem("device_id", newDeviceId);
+    }
+  }, []);
+
   return (
     <PhoneFrame>
       <Routes>
