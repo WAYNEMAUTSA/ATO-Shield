@@ -1,27 +1,40 @@
-from __future__ import annotations
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
 
-class TransactionRequest(BaseModel):
-    user_id: str = Field(..., min_length=1)
-    merchant: str = Field(..., min_length=1)
-    amount: float = Field(..., ge=0)
-    device_id: str = Field(..., min_length=1)
-    country: str = Field(..., min_length=2, max_length=2)
-    currency: str = Field(default="USD", min_length=3, max_length=3)
-    description: str = Field(default="")
-
-
-class TransactionResponse(BaseModel):
+class TransactionIn(BaseModel):
     user_id: str
-    merchant: str
     amount: float
-    device_id: str
-    country: str
-    currency: str
-    description: str
-    risk_score: float
+    currency: str = "USD"
+
+    location_lat: float | None = None
+    location_lon: float | None = None
+
+    device_id: str | None = None
+    network_fingerprint: str | None = None
+    merchant_category: str | None = None
+
+    description: str | None = Field(default=None, description="Transfer memo or note text")
+
+
+class VerdictOut(BaseModel):
+    tier1_score: float
+    tier2_score: float | None
+    zone: str
+    final_risk_score: float
     action: str
-    category: str
-    explanation: str
+
+    model_config = {"from_attributes": True}
+
+
+class TransactionOut(BaseModel):
+    id: str
+    user_id: str
+    amount: float
+    currency: str
+    description: str | None
+    created_at: datetime
+    verdict: VerdictOut | None
+
+    model_config = {"from_attributes": True}

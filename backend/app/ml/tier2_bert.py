@@ -1,24 +1,16 @@
-from __future__ import annotations
+from app.models.schemas import TransactionIn
 
-from typing import Any
-
-
-def analyze_context_text(text: str) -> dict[str, Any]:
-    lowered = (text or "").lower()
-    pressure_terms = ["urgent", "immediately", "verify", "password", "reset", "now"]
-    hits = [term for term in pressure_terms if term in lowered]
-    risk_boost = min(0.35, 0.08 * len(hits))
-
-    if risk_boost >= 0.2:
-        action = "FREEZE"
-    elif risk_boost > 0.08:
-        action = "NOTIFY"
-    else:
-        action = "APPROVE"
-
-    return {
-        "risk_boost": round(risk_boost, 4),
-        "action": action,
-        "matched_terms": hits,
-        "explanation": "Contextual text analysis detected coercive or high-pressure language.",
-    }
+def analyze_context(tx: TransactionIn) -> float:
+    if not tx.description:
+        return 0.2
+        
+    text = tx.description.lower()
+    coercive_keywords = [
+        "urgent", "verify", "account locked", "password", 
+        "security check", "immediately", "fraud alert"
+    ]
+    
+    if any(kw in text for kw in coercive_keywords):
+        return 0.85
+        
+    return 0.2

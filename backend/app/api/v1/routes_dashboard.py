@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from backend.app.websocket.dashboard_ws import DashboardConnectionManager
+from app.websocket.dashboard_ws import DashboardConnectionManager
 
 router = APIRouter(prefix="/api/v1", tags=["dashboard"])
 manager = DashboardConnectionManager()

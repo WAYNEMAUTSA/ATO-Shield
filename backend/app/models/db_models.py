@@ -1,49 +1,73 @@
-from __future__ import annotations
-
+import uuid
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import DateTime, Float, Integer, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import DateTime, Float, ForeignKey, String, Text
+# 1. Added DeclarativeBase here:
+from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase 
 
+# 2. REMOVED: from app.db.session import Base
 
+# 3. Create Base natively here:
 class Base(DeclarativeBase):
     pass
 
+def gen_uuid() -> str:
+    return str(uuid.uuid4())
 
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    merchant: Mapped[str] = mapped_column(String(128), nullable=False)
-    amount: Mapped[float] = mapped_column(Float, nullable=False)
-    device_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    country: Mapped[str] = mapped_column(String(8), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=True)
-    risk_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    action: Mapped[str] = mapped_column(String(16), default="APPROVE", nullable=False)
-    category: Mapped[str] = mapped_column(String(16), default="safe", nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=gen_uuid)
+
+    user_id: Mapped[str] = mapped_column(String, index=True)
+    amount: Mapped[float] = mapped_column(Float)
+    currency: Mapped[str] = mapped_column(String, default="USD")
+
+    location_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    location_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    device_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    network_fingerprint: Mapped[str | None] = mapped_column(String, nullable=True)
+    merchant_category: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    verdict: Mapped["Verdict"] = relationship(
+        back_populates="transaction", uselist=False, cascade="all, delete-orphan"
+    )
 
 
 class Verdict(Base):
     __tablename__ = "verdicts"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    transaction_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    risk_score: Mapped[float] = mapped_column(Float, nullable=False)
-    action: Mapped[str] = mapped_column(String(16), nullable=False)
-    category: Mapped[str] = mapped_column(String(16), nullable=False)
-    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=gen_uuid)
+
+    transaction_id: Mapped[str] = mapped_column(
+        String, ForeignKey("transactions.id"), unique=True
+    )
+
+    tier1_score: Mapped[float] = mapped_column(Float)
+    tier2_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    zone: Mapped[str] = mapped_column(String)
+    final_risk_score: Mapped[float] = mapped_column(Float)
+
+    action: Mapped[str] = mapped_column(String)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    transaction: Mapped["Transaction"] = relationship(back_populates="verdict")
 
 
 class Device(Base):
     __tablename__ = "devices"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    device_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
-    fingerprint: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    risk_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=gen_uuid)
+
+    user_id: Mapped[str] = mapped_column(String, index=True)
+    device_id: Mapped[str] = mapped_column(String, index=True)
+    is_trusted: Mapped[bool] = mapped_column(default=False)
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
