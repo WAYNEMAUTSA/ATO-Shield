@@ -29,4 +29,9 @@ export const sheety = {
       method: "POST",
       body: JSON.stringify({ profile }),
     }),
+  updateProfile: (id, fields) =>
+    sheetyRequest(`/profile/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ profile: fields }),
+    }),
 };

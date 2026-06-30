@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, ArrowLeft, AlertCircle } from "lucide-react";
 import { sheety } from "@/shared/lib/sheetyClient";
+import { getDeviceId } from "@/shared/lib/getDeviceId";
+import { detectLocation } from "@/shared/lib/detectLocation";
 
 function Login() {
   const navigate = useNavigate();
@@ -37,17 +39,68 @@ function Login() {
           p.password === form.password
       );
 
-      setSubmitting(false);
-
       if (!match) {
+        setSubmitting(false);
         setFormError("Invalid email or password.");
         return;
       }
 
-      localStorage.setItem("ato_user", JSON.stringify(match));
+      // Safe evaluation now that getDeviceId has a fallback wrapper
+      const currentDeviceId = getDeviceId();
+      let currentLocation = match.location || "";
+      try {
+        currentLocation = await detectLocation();
+      } catch {
+        // geolocation denied/unavailable — leave layout as is
+      }
+
+      const updatedUser = { ...match, deviceId: currentDeviceId, location: currentLocation };
+      localStorage.setItem("ato_user", JSON.stringify(updatedUser));
+
+      const displayLocation = currentLocation || "an unknown location";
+      const existingNotifications = JSON.parse(localStorage.getItem("ato_notifications") || "[]");
+
+      // DETECT UNRECOGNIZED DEVICE FRAUD / ATO SIGNALS
+      const isNewDevice = match.deviceId && String(match.deviceId) !== String(currentDeviceId);
+      
+      let systemAlert;
+      if (isNewDevice) {
+        // High Severity Fraud / ATO Event Warning Object
+        systemAlert = {
+          id: Date.now(),
+          type: "fraud_alert",
+          title: "🚨 CRITICAL: Suspicious Login Detected",
+          message: `An unrecognized device (${currentDeviceId.substring(0, 8)}) attempted access from ${displayLocation}. ATO Shield is analyzing behavior signals.`,
+          time: "Just now",
+          read: false,
+          severity: "high"
+        };
+      } else {
+        // Standard Authorized Login log
+        systemAlert = {
+          id: Date.now(),
+          type: "security",
+          title: "New login event",
+          message: `Account logged in from ${displayLocation} using authorized device.`,
+          time: "Just now",
+          read: false,
+          severity: "low"
+        };
+      }
+
+      // Append and save alert logs directly to local storage cache array pipeline
+      localStorage.setItem("ato_notifications", JSON.stringify([systemAlert, ...existingNotifications]));
+
+      if (updatedUser.id) {
+        sheety
+          .updateProfile(updatedUser.id, { deviceId: currentDeviceId, location: currentLocation })
+          .catch((err) => console.error("Profile remote syncing failed:", err));
+      }
+
+      setSubmitting(false);
       navigate("/dashboard");
     } catch (err) {
-      console.error("Login error:", err);
+      console.error("Login handling pipeline error:", err);
       setSubmitting(false);
       setFormError(err.message || "Something went wrong. Please try again.");
     }
@@ -57,7 +110,7 @@ function Login() {
     <div className="h-full w-full flex flex-col bg-white px-6 py-8">
       <button
         onClick={() => navigate("/welcome")}
-        className="flex items-center text-slate-500 mb-6"
+        className="flex items-center text-slate-500 mb-6 w-fit"
       >
         <ArrowLeft size={20} />
       </button>

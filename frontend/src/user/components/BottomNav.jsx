@@ -8,7 +8,7 @@ const tabs = [
   { label: "Profile", path: "/profile", icon: User },
 ];
 
-const hiddenRoutes = ["/welcome", "/login"];
+const hiddenRoutes = ["/", "/welcome", "/login"];
 
 function BottomNav() {
   const navigate = useNavigate();
