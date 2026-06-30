@@ -4,13 +4,47 @@ import BalanceCard from "../components/BalanceCard";
 import QuickActions from "../components/QuickActions";
 import SecurityStatusCard from "../components/SecurityStatusCard";
 import TransactionList from "../components/TransactionList";
-import { getBalance, getTransactions } from "@/shared/data";
-import { sheety } from "@/shared/lib/sheetyClient";
+import { getBalance } from "@/shared/data";
+import { sheety } from "@/shared/lib/googleSheetsClient";
 
 function Dashboard() {
   const [user, setUser] = useState(null);
   const [balance, setBalanceState] = useState(0);
   const [transactions, setTransactions] = useState([]);
+
+  const loadTransactions = (accountId) => {
+    if (!accountId) return;
+    sheety.getTransactions()
+      .then((res) => {
+        const allTx = res.transactions || [];
+        const myId = String(accountId).trim();
+
+        const mine = allTx
+          .filter(
+            (t) =>
+              String(t.accountId).trim() === myId ||
+              String(t.recipientAccountId).trim() === myId
+          )
+          .map((t) => {
+            const isSent = String(t.accountId).trim() === myId;
+            return {
+              id: t.id || t._rowIndex,
+              customerName: t.customerName || "",
+              recipientName: t.recipientName || "",
+              accountId: t.accountId || "",
+              recipientAccountId: t.recipientAccountId || "",
+              amount: Number(t.amount) || 0,
+              type: isSent ? "sent" : "received",
+              timestamp: t.timestamp || "",
+              status: (t.status || "").toLowerCase().trim(),
+            };
+          })
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        setTransactions(mine);
+      })
+      .catch((err) => console.error("Error loading transactions:", err));
+  };
 
   // Helper to load values from storage
   const syncDashboardData = () => {
@@ -18,11 +52,12 @@ function Dashboard() {
     if (stored) {
       const parsedUser = JSON.parse(stored);
       setUser(parsedUser);
-      
+
       const activeBalance = localStorage.getItem("ato_balance") || parsedUser.balance;
       setBalanceState(getBalance(activeBalance));
+
+      loadTransactions(parsedUser.accountId);
     }
-    setTransactions(getTransactions());
   };
 
   useEffect(() => {
@@ -37,8 +72,12 @@ function Dashboard() {
         syncDashboardData();
       }
     };
-    
-    const updateTransactions = () => setTransactions(getTransactions());
+
+    const updateTransactions = () => {
+      const stored = localStorage.getItem("ato_user");
+      if (stored) loadTransactions(JSON.parse(stored).accountId);
+    };
+
     const handleGlobalUserSync = () => syncDashboardData();
 
     window.addEventListener("ato_balance_updated", updateBalance);
@@ -56,8 +95,10 @@ function Dashboard() {
       sheety.getProfiles()
         .then((res) => {
           const profiles = res.profile || [];
-          const freshData = profiles.find((p) => String(p.id) === String(cachedUser.id));
-          
+          const freshData = profiles.find(
+            (p) => String(p.accountId).trim() === String(cachedUser.accountId).trim()
+          );
+
           if (freshData) {
             const serverBalance = Number(freshData.balance || 0);
             const localBalance = Number(cachedUser.balance || 0);
@@ -76,19 +117,19 @@ function Dashboard() {
                 time: "Just now",
                 read: false,
               };
-              
+
               // 2. Save everything to storage immediately
               localStorage.setItem("ato_notifications", JSON.stringify([incomingNotif, ...existingNotifications]));
               localStorage.setItem("ato_balance", String(serverBalance));
-              
+
               cachedUser.balance = serverBalance;
               localStorage.setItem("ato_user", JSON.stringify(cachedUser));
 
               // 3. Trigger immediate UI updates across the active dashboard view
               setBalanceState(serverBalance);
               setUser(cachedUser);
-              setTransactions(getTransactions()); // pull new entries if mock updates them
-              
+              loadTransactions(cachedUser.accountId); // pull fresh rows from Sheety
+
               window.dispatchEvent(new Event("ato_balance_updated"));
               window.dispatchEvent(new Event("ato_notifications_updated"));
             }
@@ -101,7 +142,7 @@ function Dashboard() {
       window.removeEventListener("ato_balance_updated", updateBalance);
       window.removeEventListener("ato_transactions_updated", updateTransactions);
       window.removeEventListener("ato_notifications_updated", handleGlobalUserSync);
-      clearInterval(intervalId); // Stop running the timer loop when dashboard unmounts
+      clearInterval(intervalId);
     };
   }, []);
 

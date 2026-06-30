@@ -15,68 +15,56 @@ function Send() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(null);
 
-  // Dynamic Lookup State
   const [recipientName, setRecipientName] = useState("");
   const [recipientProfile, setRecipientProfile] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Dynamic Network Contacts State
   const [dynamicContacts, setDynamicContacts] = useState([]);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
 
-  // Lock the active sender profile session context on mount
   const [senderSession, setSenderSession] = useState(() => {
     const originalUser = localStorage.getItem("ato_user");
     return originalUser ? JSON.parse(originalUser) : null;
   });
 
-  // =========================================================
-  // DYNAMIC CONTACT LOADING LOOP (CLEAN DIRECT FILTER)
-  // =========================================================
   useEffect(() => {
     if (!senderSession) return;
-    
+
     setIsLoadingContacts(true);
     sheety.getProfiles()
       .then((res) => {
         const profiles = res.profile || res.profiles || [];
-        
-        // Filter out the currently logged-in user accurately
+
         const availableContacts = profiles.filter((p) => {
           return String(p.accountId).trim() !== String(senderSession.accountId).trim();
         });
 
-        // Shuffle array using the Fisher-Yates algorithm
         const shuffled = [...availableContacts];
         for (let i = shuffled.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
 
-        // Safe Slicing: Keep up to 10 contacts maximum
         const sliceLimit = Math.min(10, shuffled.length);
         const selectedSelection = shuffled.slice(0, sliceLimit);
-        
+
         setDynamicContacts(selectedSelection);
       })
       .catch((err) => console.error("Could not fetch database contacts:", err))
       .finally(() => setIsLoadingContacts(false));
   }, [senderSession]);
 
-  // =========================================================
-  // MANUAL & SELECTED ACCOUNT VERIFICATION ENGINE
-  // =========================================================
   useEffect(() => {
     if (/^\d{12}$/.test(recipientId)) {
       setIsSearching(true);
       setError("");
-      
+
       sheety.getProfiles()
         .then((res) => {
           const profiles = res.profile || res.profiles || [];
           const match = profiles.find((p) => String(p.accountId).trim() === String(recipientId).trim());
-          
+
           if (match) {
             if (senderSession && String(match.accountId).trim() === String(senderSession.accountId).trim()) {
               setError("You cannot send money to your own account.");
@@ -105,92 +93,90 @@ function Send() {
 
   const selectContact = (contact) => {
     setRecipientId(String(contact.accountId));
-    setAmount(""); 
+    setAmount("");
   };
 
-// ... inside Send.jsx ...
-const handleSend = async (e) => {
-  e.preventDefault();
-  const currentActiveSenderRaw = localStorage.getItem("ato_user");
-  if (!currentActiveSenderRaw) return setError("Session expired.");
-  const verifiedSender = JSON.parse(currentActiveSenderRaw);
+  const handleSend = async (e) => {
+    e.preventDefault();
+    const currentActiveSenderRaw = localStorage.getItem("ato_user");
+    if (!currentActiveSenderRaw) return setError("Session expired.");
+    const verifiedSender = JSON.parse(currentActiveSenderRaw);
 
-  const numericAmount = Number(amount);
-  if (!numericAmount || numericAmount <= 0) return setError("Enter a valid amount.");
+    const numericAmount = Number(amount);
+    if (!numericAmount || numericAmount <= 0) return setError("Enter a valid amount.");
 
-  setIsProcessing(true);
-  setError("");
+    setIsProcessing(true);
+    setError("");
 
-  try {
-    // 1. Update recipient balance in Sheety
-   await sheety.updateProfile(recipientProfile.accountId, {
-  balance: Number(recipientProfile.balance) + numericAmount,
-});
-    // 2. Deduct from sender locally + validate balance
-    const result = sendMoney({
-      accountId: recipientId,
-      name: recipientName,
-      amount: numericAmount,
-      currentBalance: getBalance(),
-    });
-    if (!result.success) throw new Error(result.error);
+    try {
+      // 1. Update recipient balance in Sheety
+      await sheety.updateProfile(recipientProfile.accountId, {
+        balance: Number(recipientProfile.balance) + numericAmount,
+      });
 
-    // 3. Sync sender's new balance to Sheety + localStorage
-    verifiedSender.balance = result.newBalance;
-    localStorage.setItem("ato_user", JSON.stringify(verifiedSender));
-    await sheety.updateProfile(verifiedSender.accountId, { balance: result.newBalance });
+      // 2. Deduct from sender locally + validate balance
+      const result = sendMoney({
+        accountId: recipientId,
+        name: recipientName,
+        amount: numericAmount,
+        currentBalance: getBalance(),
+      });
+      if (!result.success) throw new Error(result.error);
 
-    // 4. Log transaction to Sheety — keys match sheet headers exactly
-    await sheety.createTransaction({
-      customerName: verifiedSender.fullName || verifiedSender.name,
-      accountId: verifiedSender.accountId,
-      recipientAccountId: recipientId,
-      amount: numericAmount,
-      type: "sent",
-      status: "pending",
-      description: `Transfer to ${recipientName}`,
-      timestamp: new Date().toISOString(),
-      riskScore: Math.floor(Math.random() * 20) + 1,
-      device: localStorage.getItem("device_id") || "unknown",
-      location: localStorage.getItem("network_fingerprint") || "Mobile App",
-    });
+      // 3. Sync sender's new balance to Sheety + localStorage
+      verifiedSender.balance = result.newBalance;
+      localStorage.setItem("ato_user", JSON.stringify(verifiedSender));
+      await sheety.updateProfile(verifiedSender.accountId, { balance: result.newBalance });
 
-    // 5. Notify listeners
-    window.dispatchEvent(new Event("ato_transactions_updated"));
-    window.dispatchEvent(new Event("ato_balance_updated"));
+      // 4. Log transaction to Sheety — now includes recipientName,
+      //    matches the new "recipientName" column header exactly
+      await sheety.createTransaction({
+        customerName: verifiedSender.fullName || verifiedSender.name,
+        accountId: verifiedSender.accountId,
+        recipientAccountId: recipientId,
+        recipientName: recipientName,
+        amount: numericAmount,
+        type: "sent",
+        status: "pending",
+        description: `Transfer to ${recipientName}`,
+        timestamp: new Date().toISOString(),
+        riskScore: Math.floor(Math.random() * 20) + 1,
+        device: localStorage.getItem("device_id") || "unknown",
+        location: localStorage.getItem("network_fingerprint") || "Mobile App",
+      });
 
-    setSuccess({ amount: numericAmount, name: recipientName });
-    setTimeout(() => navigate("/dashboard"), 1500);
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setIsProcessing(false);
-  }
-};
+      // 5. Notify listeners
+      window.dispatchEvent(new Event("ato_transactions_updated"));
+      window.dispatchEvent(new Event("ato_balance_updated"));
 
-// Ensure your Map key is fixed in the JSX like this:
-// {dynamicContacts.map((contact) => (
-//   <button key={contact.id || contact.accountId} ...>
+      setSuccess({ amount: numericAmount, name: recipientName });
+      setTimeout(() => navigate("/dashboard"), 1500);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="h-full w-full flex flex-col bg-white px-6 py-8 overflow-y-auto">
       <button onClick={() => navigate("/dashboard")} className="text-slate-500 mb-6 flex items-center gap-1 w-fit" disabled={isProcessing}>
         <ArrowLeft size={20} />
       </button>
-      
+
       <h2 className="text-xl font-semibold text-slate-900 mb-4">Send money</h2>
 
-      {/* DYNAMIC REAL-TIME CONTACT CAROUSEL - CLEAN RENDERING LOOP */}
       {dynamicContacts.length > 0 && (
         <div className="mb-6">
           <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">
             Suggested Contacts from Network
           </label>
-          
+
           <div className="flex gap-3 overflow-x-auto pb-3 pt-1 scrollbar-thin w-full items-center">
             {dynamicContacts.map((contact) => {
               const displayName = contact.fullName || contact.name || "User";
               const initials = displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-              
+
               return (
                 <button
                   key={contact.id || contact.accountId}
@@ -258,9 +244,9 @@ const handleSend = async (e) => {
         </div>
 
         {error && <p className="text-xs text-red-500 mt-1 font-medium">{error}</p>}
-        
-        <Button 
-          type="submit" 
+
+        <Button
+          type="submit"
           className="bg-cyan-500 hover:bg-cyan-600 text-white h-12 rounded-xl mt-2 font-medium shadow-md shadow-cyan-100"
           disabled={isSearching || !recipientName || isProcessing}
         >

@@ -7,6 +7,7 @@ function normalizeTransaction(tx) {
     customerName: tx.customerName || "Unknown",
     accountId: tx.accountId || "",
     recipientAccountId: tx.recipientAccountId || "",
+    recipientName: tx.recipientName || "",
     amount: Number(tx.amount) || 0,
     type: tx.type || "sent",
     status: (tx.status || "").toLowerCase().trim(),

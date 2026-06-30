@@ -30,48 +30,53 @@ function TransactionList({ transactions = [] }) {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {transactions.slice(0, 5).map((tx, index) => (
-            <button
-              key={tx.id ?? `tx-${tx.accountId}-${index}`}
-              onClick={() => navigate(`/send?to=${tx.recipientAccountId || tx.accountId || ""}`)}
-              className="flex items-center justify-between w-full"
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                    tx.type === "received" ? "bg-green-50" : "bg-slate-100"
+          {transactions.slice(0, 5).map((tx, index) => {
+            const displayName =
+              tx.type === "received"
+                ? tx.customerName || tx.name || "Unknown"
+                : tx.recipientName || tx.name || "Unknown";
+
+            return (
+              <button
+                key={tx.id ?? `tx-${tx.accountId}-${index}`}
+                onClick={() => navigate(`/send?to=${tx.recipientAccountId || tx.accountId || ""}`)}
+                className="flex items-center justify-between w-full"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                      tx.type === "received" ? "bg-green-50" : "bg-slate-100"
+                    }`}
+                  >
+                    {tx.type === "received" ? (
+                      <ArrowDownLeft size={16} className="text-green-600" />
+                    ) : (
+                      <ArrowUpRight size={16} className="text-slate-500" />
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-slate-900">{displayName}</p>
+                    <p className="text-xs text-slate-400">
+                      {tx.timestamp || tx.date
+                        ? new Date(tx.timestamp || tx.date).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                          })
+                        : "—"}
+                    </p>
+                  </div>
+                </div>
+                <p
+                  className={`text-sm font-semibold ${
+                    tx.type === "received" ? "text-green-600" : "text-slate-900"
                   }`}
                 >
-                  {tx.type === "received" ? (
-                    <ArrowDownLeft size={16} className="text-green-600" />
-                  ) : (
-                    <ArrowUpRight size={16} className="text-slate-500" />
-                  )}
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-900">
-                    {tx.customerName || tx.name || "Unknown"}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {tx.timestamp || tx.date
-                      ? new Date(tx.timestamp || tx.date).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                        })
-                      : "—"}
-                  </p>
-                </div>
-              </div>
-              <p
-                className={`text-sm font-semibold ${
-                  tx.type === "received" ? "text-green-600" : "text-slate-900"
-                }`}
-              >
-                {tx.type === "received" ? "+" : "-"}₹
-                {Math.abs(Number(tx.amount)).toLocaleString("en-IN")}
-              </p>
-            </button>
-          ))}
+                  {tx.type === "received" ? "+" : "-"}₹
+                  {Math.abs(Number(tx.amount)).toLocaleString("en-IN")}
+                </p>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
