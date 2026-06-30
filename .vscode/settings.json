@@ -1,0 +1,7 @@
+{
+  "python.defaultInterpreterPath": "/home/codespace/.python/current/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/backend",
+    "${workspaceFolder}"
+  ]
+}

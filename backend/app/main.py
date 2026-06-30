@@ -1,0 +1,20 @@
+from __future__ import annotations
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from backend.app.api.v1.routes_dashboard import router as dashboard_router
+from backend.app.api.v1.routes_transactions import router as transactions_router
+
+app = FastAPI(title="ATO-Shield Backend", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(transactions_router)
+app.include_router(dashboard_router)
