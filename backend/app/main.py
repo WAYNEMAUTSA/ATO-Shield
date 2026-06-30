@@ -18,3 +18,11 @@ app.add_middleware(
 
 app.include_router(transactions_router)
 app.include_router(dashboard_router)
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to ATO-Shield API!"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
