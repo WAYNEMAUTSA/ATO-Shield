@@ -14,6 +14,14 @@ import EditProfile from "./user/pages/EditProfile";
 import Notifications from "./user/pages/Notifications";
 import Activity from "@/user/pages/Activity";
 import Support from "@/user/pages/Support";
+import AnalystSplash from "@/analyst/pages/AnalystSplash";
+import AnalystLogin from "@/analyst/pages/AnalystLogin";
+import AnalystDashboard from "@/analyst/pages/Dashboard";
+import AnalystLayout from "@/analyst/pages/AnalystLayout"; 
+import CaseReview from "@/analyst/pages/CaseReview";
+import Customers from "@/analyst/pages/Customers";
+import Settings from "@/analyst/pages/Settings";
+
 
 function App() {
   return (
@@ -24,8 +32,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        
 
-       
        //inside routes
         <Route path="/send" element={<Send />} />
         <Route path="/receive" element={<Receive />} />
@@ -36,7 +44,22 @@ function App() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/activity" element={<Activity />} />
         <Route path="/support" element={<Support />} />   
-                 
+
+
+       {/* Analyst Routes */}
+        <Route path="/analyst">
+          <Route index element={<AnalystSplash />} />
+          <Route path="login" element={<AnalystLogin />} />
+          
+          {/* Nested Routes: Everything here inherits AnalystLayout */}
+          <Route element={<AnalystLayout />}>
+            <Route path="dashboard" element={<AnalystDashboard />} />
+            <Route path="cases" element={<CaseReview />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="notifications" element={<Notifications />} /> {/* ADD THIS */}
+            <Route path="settings" element={<Settings />} />
+          </Route>  
+          </Route>    
       </Routes>
     </PhoneFrame>
   );

@@ -107,110 +107,53 @@ function Send() {
     setAmount(""); 
   };
 
-  const handleSend = async (e) => {
-    e.preventDefault();
+// ... inside Send.jsx ...
+const handleSend = async (e) => {
+  e.preventDefault();
+  const currentActiveSenderRaw = localStorage.getItem("ato_user");
+  if (!currentActiveSenderRaw) return setError("Session expired.");
+  const verifiedSender = JSON.parse(currentActiveSenderRaw);
 
-    const currentActiveSenderRaw = localStorage.getItem("ato_user");
-    if (!currentActiveSenderRaw) {
-      setError("Session expired. Please log in again.");
-      return;
-    }
-    const verifiedSender = JSON.parse(currentActiveSenderRaw);
+  const numericAmount = Number(amount);
+  setIsProcessing(true);
+  setError("");
 
-    if (!/^\d{12}$/.test(recipientId)) {
-      setError("Enter a valid 12-digit Account ID.");
-      return;
-    }
+  try {
+    // Balance updates
+    await sheety.updateProfile(recipientProfile.id, { balance: Number(recipientProfile.balance) + numericAmount });
+    
+    const result = sendMoney({ accountId: recipientId, name: recipientName, amount: numericAmount, currentBalance: getBalance() });
+    if (!result.success) throw new Error(result.error);
 
-    if (!recipientProfile) {
-      setError("Cannot send money to an unverified account.");
-      return;
-    }
+    verifiedSender.balance = result.newBalance;
+    localStorage.setItem("ato_user", JSON.stringify(verifiedSender));
+    await sheety.updateProfile(verifiedSender.id, { balance: result.newBalance });
 
-    const numericAmount = Number(amount);
-    if (!amount || numericAmount <= 0) {
-      setError("Enter a valid amount.");
-      return;
-    }
+    // LOG TRANSACTION (Keys match your Sheet headers exactly)
+    await sheety.createTransaction({
+      customerName: verifiedSender.fullName || verifiedSender.name,
+      accountId: verifiedSender.accountId,
+      amount: numericAmount,
+      status: "pending",
+      timestamp: new Date().toISOString(),
+      riskScore: Math.floor(Math.random() * 20) + 1,
+      device: localStorage.getItem("device_id") || "unknown",
+      location: "Mobile App"
+    });
 
-    const currentBalance = getBalance();
-    if (numericAmount > currentBalance) {
-      setError(`Insufficient balance. You only have ₹${currentBalance.toLocaleString()}.`);
-      return;
-    }
-
-    setIsProcessing(true);
-    setError("");
-
-    try {
-      const currentRecipientBalance = Number(recipientProfile.balance || 0);
-      const updatedRecipientBalance = currentRecipientBalance + numericAmount;
-
-      await sheety.updateProfile(recipientProfile.id, {
-        balance: updatedRecipientBalance
-      });
-
-      const result = sendMoney({
-        accountId: recipientId,
-        name: recipientName,
-        amount: numericAmount,
-        currentBalance,
-      });
-
-      if (!result.success) {
-        setError(result.error);
-        setIsProcessing(false);
-        return;
-      }
-
-      verifiedSender.balance = result.newBalance;
-      localStorage.setItem("ato_user", JSON.stringify(verifiedSender));
-      localStorage.setItem("ato_balance", String(result.newBalance));
-
-      const existingNotifications = JSON.parse(localStorage.getItem("ato_notifications") || "[]");
-      const debitNotif = {
-        id: Date.now(),
-        type: "info",
-        title: "Funds Sent Successfully",
-        message: `You have successfully transferred ₹${numericAmount.toLocaleString()} to ${recipientName}.`,
-        time: "Just now",
-        read: false,
-      };
-      localStorage.setItem("ato_notifications", JSON.stringify([debitNotif, ...existingNotifications]));
-
-      await sheety.updateProfile(verifiedSender.id, {
-        balance: result.newBalance
-      });
-
-      window.dispatchEvent(new Event("ato_balance_updated"));
-      window.dispatchEvent(new Event("ato_transactions_updated"));
-      window.dispatchEvent(new Event("ato_notifications_updated"));
-
-      setSuccess({ amount: numericAmount, name: recipientName });
-      setTimeout(() => navigate("/dashboard"), 1500);
-
-    } catch (err) {
-      console.error("Transfer transaction error:", err);
-      setError("Transaction failed. Please try again.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  if (success) {
-    return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-white px-6 py-8 text-center">
-        <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mb-4">
-          <CheckCircle2 size={32} className="text-green-500" />
-        </div>
-        <p className="text-lg font-semibold text-slate-900">Money sent!</p>
-        <p className="text-sm text-slate-500 mt-1">
-          ₹{success.amount.toLocaleString()} sent to {success.name}
-        </p>
-      </div>
-    );
+    window.dispatchEvent(new Event("ato_transactions_updated"));
+    setSuccess({ amount: numericAmount, name: recipientName });
+    setTimeout(() => navigate("/dashboard"), 1500);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setIsProcessing(false);
   }
+};
 
+// Ensure your Map key is fixed in the JSX like this:
+// {dynamicContacts.map((contact) => (
+//   <button key={contact.id || contact.accountId} ...>
   return (
     <div className="h-full w-full flex flex-col bg-white px-6 py-8 overflow-y-auto">
       <button onClick={() => navigate("/dashboard")} className="text-slate-500 mb-6 flex items-center gap-1 w-fit" disabled={isProcessing}>

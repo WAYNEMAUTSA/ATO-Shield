@@ -7,15 +7,18 @@ const tabs = [
   { label: "Activity", path: "/activity", icon: Receipt },
   { label: "Profile", path: "/profile", icon: User },
 ];
-
+// Add analyst routes to the exclusion list
 const hiddenRoutes = ["/", "/welcome", "/login"];
 
 function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  if (hiddenRoutes.includes(location.pathname)) return null;
-
+  // Hide on exact matches or any route starting with "/analyst"
+  if (hiddenRoutes.includes(location.pathname) || location.pathname.startsWith("/analyst")) {
+    return null;
+  }
+  
   return (
     <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around py-3 z-40">
       {tabs.map(({ label, path, icon: Icon }) => {

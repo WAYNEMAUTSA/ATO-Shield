@@ -107,65 +107,78 @@ function Login() {
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-white px-6 py-8">
-      <button
-        onClick={() => navigate("/welcome")}
-        className="flex items-center text-slate-500 mb-6 w-fit"
-      >
-        <ArrowLeft size={20} />
-      </button>
-
-      <h2 className="text-xl font-semibold text-slate-900 mb-1">Welcome back</h2>
-      <p className="text-sm text-slate-500 mb-6">Log in to access your account.</p>
-
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-        <div>
-          <label className="text-sm font-medium text-slate-700">Email address</label>
-          <Input
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            placeholder="you@example.com"
-            className="mt-1 h-12 rounded-xl"
-          />
-        </div>
-
-        <div>
-          <label className="text-sm font-medium text-slate-700">Password</label>
-          <div className="relative mt-1">
-            <Input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Enter your password"
-              className="h-12 rounded-xl pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-        </div>
-
-        {formError && (
-          <p className="text-xs text-red-500 flex items-center gap-1">
-            <AlertCircle size={12} /> {formError}
-          </p>
-        )}
-
-        <Button
-          type="submit"
-          disabled={submitting}
-          className="bg-cyan-500 hover:bg-cyan-600 text-white h-12 rounded-xl mt-2"
+    <div className="h-full w-full flex flex-col bg-white px-6 py-8 justify-between">
+      <div>
+        <button
+          onClick={() => navigate("/welcome")}
+          className="flex items-center text-slate-500 mb-6 w-fit"
         >
-          {submitting ? "Logging in..." : "Log in"}
-        </Button>
-      </form>
+          <ArrowLeft size={20} />
+        </button>
+
+        <h2 className="text-xl font-semibold text-slate-900 mb-1">Welcome back</h2>
+        <p className="text-sm text-slate-500 mb-6">Log in to access your account.</p>
+
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+          <div>
+            <label className="text-sm font-medium text-slate-700">Email address</label>
+            <Input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              placeholder="you@example.com"
+              className="mt-1 h-12 rounded-xl"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-700">Password</label>
+            <div className="relative mt-1">
+              <Input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                className="h-12 rounded-xl pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          {formError && (
+            <p className="text-xs text-red-500 flex items-center gap-1">
+              <AlertCircle size={12} /> {formError}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="bg-cyan-500 hover:bg-cyan-600 text-white h-12 rounded-xl mt-2"
+          >
+            {submitting ? "Logging in..." : "Log in"}
+          </Button>
+        </form>
+      </div>
+
+      {/* HIDDEN OPERATIONS SYSTEM GATEWAY */}
+      <div className="mt-12 text-center border-t border-slate-100 pt-6">
+        <button 
+          type="button"
+          onClick={() => navigate("/analyst")}
+          className="text-[10px] uppercase font-mono tracking-widest text-slate-400 hover:text-cyan-600 transition-colors cursor-pointer"
+        >
+          System Terminal Access // Control Gateway
+        </button>
+      </div>
     </div>
   );
 }
